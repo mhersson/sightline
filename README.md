@@ -137,11 +137,8 @@ share—no hacks required.
 # Debug build and run
 swift build && .build/debug/Sightline
 
-# Watch debug logs (default location on macOS)
-tail -f ~/Library/Logs/Sightline/debug.log
-
-# Or if using XDG_STATE_HOME
-tail -f $XDG_STATE_HOME/Sightline/debug.log
+# Watch debug logs
+tail -f ~/Library/Logs/Sightline/sightline_debug.log
 ```
 
 ### Project Structure

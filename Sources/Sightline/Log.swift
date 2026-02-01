@@ -2,38 +2,16 @@ import Foundation
 
 enum Log {
     private static let fileHandle: FileHandle? = {
-        // Try directories in order of preference
-        let candidates: [String] = {
-            var dirs: [String] = []
+        let logDir = NSHomeDirectory() + "/Library/Logs/Sightline"
+        let logPath = logDir + "/sightline_debug.log"
 
-            // 1. XDG_STATE_HOME if set
-            if let xdgState = ProcessInfo.processInfo.environment["XDG_STATE_HOME"],
-               !xdgState.isEmpty {
-                dirs.append((xdgState as NSString).expandingTildeInPath + "/Sightline")
-            }
-
-            // 2. ~/Library/Logs (standard macOS location)
-            dirs.append(NSHomeDirectory() + "/Library/Logs/Sightline")
-
-            // 3. /tmp fallback
-            dirs.append("/tmp")
-
-            return dirs
-        }()
-
-        for dir in candidates {
-            do {
-                try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
-                let path = dir + "/sightline_debug.log"
-                if FileManager.default.createFile(atPath: path, contents: nil) {
-                    return FileHandle(forWritingAtPath: path)
-                }
-            } catch {
-                continue
-            }
+        do {
+            try FileManager.default.createDirectory(atPath: logDir, withIntermediateDirectories: true)
+            FileManager.default.createFile(atPath: logPath, contents: nil)
+            return FileHandle(forWritingAtPath: logPath)
+        } catch {
+            return nil
         }
-
-        return nil
     }()
 
     static func debug(_ message: String) {
