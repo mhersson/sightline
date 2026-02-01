@@ -37,7 +37,7 @@ swift "$SCRIPT_DIR/generate-icon.swift" "$ICONSET_DIR"
 iconutil -c icns "$ICONSET_DIR" -o "$APP_BUNDLE/Contents/Resources/AppIcon.icns"
 
 # Create Info.plist
-cat > "$APP_BUNDLE/Contents/Info.plist" << 'EOF'
+cat > "$APP_BUNDLE/Contents/Info.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
