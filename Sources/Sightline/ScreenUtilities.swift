@@ -5,28 +5,28 @@ import AppKit
 
 extension SCDisplay {
     /// Find the matching NSScreen for this SCDisplay
+    /// Note: NSScreen and SCDisplay may have different y coordinates due to different coordinate systems,
+    /// so we match based on x origin, width, and height only
     func matchingNSScreen() -> NSScreen? {
-        let scFrame = CGRect(
-            x: CGFloat(frame.origin.x),
-            y: CGFloat(frame.origin.y),
-            width: CGFloat(width),
-            height: CGFloat(height)
-        )
-        return NSScreen.screens.first { $0.frame == scFrame }
+        NSScreen.screens.first { screen in
+            let sameX = CGFloat(frame.origin.x) == screen.frame.origin.x
+            let sameWidth = CGFloat(width) == screen.frame.width
+            let sameHeight = CGFloat(height) == screen.frame.height
+            return sameX && sameWidth && sameHeight
+        }
     }
 }
 
 extension NSScreen {
     /// Find the matching SCDisplay from a list of displays
+    /// Note: NSScreen and SCDisplay may have different y coordinates due to different coordinate systems,
+    /// so we match based on x origin, width, and height only
     func matchingSCDisplay(from displays: [SCDisplay]) -> SCDisplay? {
         displays.first { display in
-            let scFrame = CGRect(
-                x: CGFloat(display.frame.origin.x),
-                y: CGFloat(display.frame.origin.y),
-                width: CGFloat(display.width),
-                height: CGFloat(display.height)
-            )
-            return scFrame == self.frame
+            let sameX = CGFloat(display.frame.origin.x) == self.frame.origin.x
+            let sameWidth = CGFloat(display.width) == self.frame.width
+            let sameHeight = CGFloat(display.height) == self.frame.height
+            return sameX && sameWidth && sameHeight
         }
     }
 }

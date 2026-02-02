@@ -124,9 +124,12 @@ EOF
         echo "Auto-start enabled. Sightline will start automatically on login."
     fi
 
-    echo ""
-    echo "Launching Sightline..."
-    open "/Applications/$APP_NAME.app"
+    # Only manually open if not using autostart (launchd handles it via RunAtLoad)
+    if [[ "$2" != "--autostart" ]]; then
+        echo ""
+        echo "Launching Sightline..."
+        open "/Applications/$APP_NAME.app"
+    fi
 
     echo ""
     echo "Done! Sightline is now running from /Applications."
