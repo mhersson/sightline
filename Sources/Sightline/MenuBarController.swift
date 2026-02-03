@@ -27,7 +27,7 @@ final class MenuBarController {
             menu.addItem(withTitle: "Capturing...", action: nil, keyEquivalent: "").isEnabled = false
             menu.addItem(NSMenuItem.separator())
 
-            let selectItem = NSMenuItem(title: "Select New Region", action: #selector(selectRegion), keyEquivalent: "n")
+            let selectItem = NSMenuItem(title: "Select New Region", action: #selector(selectRegion), keyEquivalent: "")
             selectItem.target = self
             selectItem.isEnabled = !isSelectingRegion
             menu.addItem(selectItem)
@@ -36,19 +36,19 @@ final class MenuBarController {
 
             // Show/Hide capture window toggle
             let windowTitle = captureManager.isCaptureWindowVisible ? "Hide Capture Window" : "Show Capture Window"
-            menu.addItem(withTitle: windowTitle, action: #selector(toggleCaptureWindow), keyEquivalent: "h").target = self
+            menu.addItem(withTitle: windowTitle, action: #selector(toggleCaptureWindow), keyEquivalent: "").target = self
 
             menu.addItem(NSMenuItem.separator())
-            menu.addItem(withTitle: "Stop Sharing", action: #selector(stopSharing), keyEquivalent: "s").target = self
+            menu.addItem(withTitle: "Stop Sharing", action: #selector(stopSharing), keyEquivalent: "").target = self
         } else {
-            let selectItem = NSMenuItem(title: "Select Region", action: #selector(selectRegion), keyEquivalent: "n")
+            let selectItem = NSMenuItem(title: "Select Region", action: #selector(selectRegion), keyEquivalent: "")
             selectItem.target = self
             selectItem.isEnabled = !isSelectingRegion
             menu.addItem(selectItem)
         }
 
         menu.addItem(NSMenuItem.separator())
-        menu.addItem(withTitle: "Quit", action: #selector(quit), keyEquivalent: "q").target = self
+        menu.addItem(withTitle: "Quit", action: #selector(quit), keyEquivalent: "").target = self
 
         statusItem?.menu = menu
     }
