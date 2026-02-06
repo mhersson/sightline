@@ -63,6 +63,11 @@ final class MenuBarController {
         Log.debug("selectRegion: starting")
 
         Task {
+            defer {
+                isSelectingRegion = false
+                rebuildMenu()
+            }
+
             if captureManager.isCapturing {
                 Log.debug("selectRegion: stopping existing capture")
                 await captureManager.stopCapture()
@@ -75,10 +80,6 @@ final class MenuBarController {
             Log.debug("selectRegion: calling waitForSelection")
             let selection = await overlay.waitForSelection()
 
-            // Selection UI is done - allow new selections
-            isSelectingRegion = false
-            rebuildMenu()
-
             Log.debug("selectRegion: waitForSelection returned: \(String(describing: selection))")
 
             if let selection = selection {
@@ -86,12 +87,13 @@ final class MenuBarController {
                 do {
                     try await captureManager.startCapture(region: selection.rect, on: selection.screen)
                     updateStatusIcon(capturing: true)
-                    rebuildMenu()
                     Log.debug("selectRegion: capture started")
+                } catch let error as NSError where error.domain == "com.apple.ScreenCaptureKit" && error.code == -3801 {
+                    Log.debug("selectRegion: permission denied: \(error)")
+                    showError("Screen recording permission required. Please enable in System Settings > Privacy & Security > Screen Recording.")
                 } catch {
                     Log.debug("selectRegion: capture failed: \(error)")
                     showError("Failed to start capture: \(error.localizedDescription)")
-                    rebuildMenu()
                 }
             } else {
                 Log.debug("selectRegion: no selection made")

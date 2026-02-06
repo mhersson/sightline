@@ -33,6 +33,17 @@ final class CaptureManager: NSObject {
             name: .captureWindowClosed,
             object: nil
         )
+        // Listen for display configuration changes
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleScreenChange),
+            name: NSApplication.didChangeScreenParametersNotification,
+            object: nil
+        )
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 
     @objc private func handleWindowClosed() {
@@ -41,10 +52,21 @@ final class CaptureManager: NSObject {
         }
     }
 
+    @objc private func handleScreenChange() {
+        Task { @MainActor in
+            guard isCapturing, let screen = currentScreen else { return }
+            // Check if our display still exists
+            if screen.matchingNSScreen() == nil {
+                Log.debug("Captured display disconnected, stopping capture")
+                await stopCapture()
+            }
+        }
+    }
+
     func startCapture(region: CGRect, on screen: SCDisplay) async throws {
         Log.debug("CaptureManager: startCapture called for region \(region)")
 
-        // Calculate capture size (cap at 2560x1440)
+        // Calculate capture size (ensure even dimensions)
         let (captureWidth, captureHeight) = calculateCaptureSize(
             sourceWidth: Int(region.width),
             sourceHeight: Int(region.height)
@@ -81,7 +103,13 @@ final class CaptureManager: NSObject {
         currentNSScreen = nsScreen
         Log.debug("CaptureManager: matched NSScreen: \(String(describing: nsScreen))")
 
-        // Start the stream
+        // Show border window before starting stream so it gets excluded from capture
+        if let nsScreen = nsScreen {
+            showBorderWindow(frame: region, on: nsScreen)
+            Log.debug("CaptureManager: border window shown")
+        }
+
+        // Start the stream (excludes own windows to prevent feedback loop)
         Log.debug("CaptureManager: starting stream...")
         try await setupAndStartStream(
             region: region,
@@ -91,20 +119,18 @@ final class CaptureManager: NSObject {
         )
         Log.debug("CaptureManager: stream started")
 
-        // Show border window around captured region
-        if let nsScreen = nsScreen {
-            showBorderWindow(frame: region, on: nsScreen)
-            Log.debug("CaptureManager: border window shown")
-        }
-
         Log.debug("CaptureManager: startCapture completed successfully")
     }
 
     func stopCapture() async {
         Log.debug("CaptureManager: stopCapture called")
         if let stream = stream {
-            try? await stream.stopCapture()
-            Log.debug("CaptureManager: stream stopped")
+            do {
+                try await stream.stopCapture()
+                Log.debug("CaptureManager: stream stopped")
+            } catch {
+                Log.debug("CaptureManager: failed to stop stream: \(error)")
+            }
         }
         stream = nil
         surfaceLock.withLock { $0 = nil }
@@ -153,7 +179,12 @@ final class CaptureManager: NSObject {
         config.queueDepth = 3
         config.showsCursor = true
 
-        let filter = SCContentFilter(display: screen, excludingWindows: [])
+        // Exclude own windows to prevent feedback loop (hall-of-mirrors effect)
+        let content = try await SCShareableContent.current
+        let pid = ProcessInfo.processInfo.processIdentifier
+        let ownWindows = content.windows.filter { $0.owningApplication?.processID == pid }
+        Log.debug("CaptureManager: excluding \(ownWindows.count) own windows from capture")
+        let filter = SCContentFilter(display: screen, excludingWindows: ownWindows)
 
         let newStream = SCStream(filter: filter, configuration: config, delegate: self)
         try newStream.addStreamOutput(self, type: .screen, sampleHandlerQueue: DispatchQueue(label: "sightline.capture", qos: .userInteractive))
@@ -175,7 +206,11 @@ final class CaptureManager: NSObject {
     private func calculateCaptureSize(sourceWidth: Int, sourceHeight: Int) -> (Int, Int) {
         // Use exact size for 1:1 pixel quality
         // Ensure even dimensions (some encoders require this)
-        return (sourceWidth & ~1, sourceHeight & ~1)
+        // Round up to nearest even number with minimum of 2
+        let minSize = 2
+        let w = max(minSize, (sourceWidth + 1) & ~1)
+        let h = max(minSize, (sourceHeight + 1) & ~1)
+        return (w, h)
     }
 
     private nonisolated func renderToSurface(pixelBuffer: CVPixelBuffer, surface: IOSurface) {
@@ -201,10 +236,16 @@ final class CaptureManager: NSObject {
         let copyHeight = min(bufferHeight, surfaceHeight)
         let copyBytesPerRow = copyWidth * 4
 
-        for row in 0..<copyHeight {
-            let srcRow = srcBase.advanced(by: row * srcBytesPerRow)
-            let dstRow = dstBase.advanced(by: row * dstBytesPerRow)
-            memcpy(dstRow, srcRow, copyBytesPerRow)
+        if srcBytesPerRow == dstBytesPerRow && srcBytesPerRow == copyBytesPerRow {
+            // Single copy for entire buffer when strides match
+            memcpy(dstBase, srcBase, copyHeight * copyBytesPerRow)
+        } else {
+            // Row-by-row for mismatched strides
+            for row in 0..<copyHeight {
+                let srcRow = srcBase.advanced(by: row * srcBytesPerRow)
+                let dstRow = dstBase.advanced(by: row * dstBytesPerRow)
+                memcpy(dstRow, srcRow, copyBytesPerRow)
+            }
         }
     }
 }
@@ -227,9 +268,13 @@ extension CaptureManager: SCStreamOutput {
         guard type == .screen,
               let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
 
-        // Thread-safe surface access
+        // Get surface reference atomically - if nil, capture has stopped
         guard let surface = surfaceLock.withLock({ $0 }) else { return }
 
+        // Render to surface - this is safe because:
+        // 1. stopCapture() nils the lock value before destroying the surface
+        // 2. The surface itself remains valid until this frame completes
+        // 3. If stopCapture runs now, the next frame will see nil and return early
         renderToSurface(pixelBuffer: pixelBuffer, surface: surface)
 
         // Update the window with the new surface content (dispatch to main)

@@ -4,30 +4,24 @@ import AppKit
 // MARK: - Screen Matching Utilities
 
 extension SCDisplay {
-    /// Find the matching NSScreen for this SCDisplay
-    /// Note: NSScreen and SCDisplay may have different y coordinates due to different coordinate systems,
-    /// so we match based on x origin, width, and height only
+    /// Find the matching NSScreen for this SCDisplay using display IDs
     func matchingNSScreen() -> NSScreen? {
         NSScreen.screens.first { screen in
-            let sameX = CGFloat(frame.origin.x) == screen.frame.origin.x
-            let sameWidth = CGFloat(width) == screen.frame.width
-            let sameHeight = CGFloat(height) == screen.frame.height
-            return sameX && sameWidth && sameHeight
+            guard let screenNumber = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID else {
+                return false
+            }
+            return screenNumber == displayID
         }
     }
 }
 
 extension NSScreen {
-    /// Find the matching SCDisplay from a list of displays
-    /// Note: NSScreen and SCDisplay may have different y coordinates due to different coordinate systems,
-    /// so we match based on x origin, width, and height only
+    /// Find the matching SCDisplay from a list of displays using display IDs
     func matchingSCDisplay(from displays: [SCDisplay]) -> SCDisplay? {
-        displays.first { display in
-            let sameX = CGFloat(display.frame.origin.x) == self.frame.origin.x
-            let sameWidth = CGFloat(display.width) == self.frame.width
-            let sameHeight = CGFloat(display.height) == self.frame.height
-            return sameX && sameWidth && sameHeight
+        guard let screenNumber = deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID else {
+            return nil
         }
+        return displays.first { $0.displayID == screenNumber }
     }
 }
 

@@ -38,14 +38,19 @@ final class SelectionOverlayController {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
 
+        // Find screen containing cursor
+        let mouseLocation = NSEvent.mouseLocation
+        let cursorScreen = NSScreen.screens.first { $0.frame.contains(mouseLocation) }
+
         // Show all windows
         for window in overlayWindows {
             window.setIsVisible(true)
             window.orderFrontRegardless()
+            // Make the window under the cursor key so it receives events
+            if window.screen == cursorScreen {
+                window.makeKey()
+            }
         }
-
-        // Make the first window key (it will receive events)
-        overlayWindows.first?.makeKey()
 
         // Set crosshair cursor on all windows
         for window in overlayWindows {
@@ -290,7 +295,7 @@ private final class SelectionView: NSView {
         borderPath.stroke()
 
         // Draw dimensions label
-        let dimensions = "\(Int(selectionRect.width)) × \(Int(selectionRect.height))"
+        let dimensions = "\(Int(selectionRect.width.rounded())) × \(Int(selectionRect.height.rounded()))"
         let attrs: [NSAttributedString.Key: Any] = [
             .foregroundColor: NSColor.white,
             .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .medium),

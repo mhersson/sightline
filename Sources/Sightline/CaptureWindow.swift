@@ -93,7 +93,6 @@ private class RenderView: NSView {
 
         // Lock surface for reading
         IOSurfaceLock(surface, .readOnly, nil)
-        defer { IOSurfaceUnlock(surface, .readOnly, nil) }
 
         let baseAddress = IOSurfaceGetBaseAddress(surface)
         let bytesPerRow = IOSurfaceGetBytesPerRow(surface)
@@ -110,14 +109,18 @@ private class RenderView: NSView {
                 bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
               ),
               let cgImage = context.makeImage() else {
+            IOSurfaceUnlock(surface, .readOnly, nil)
             return
         }
 
-        // Update layer
+        // Update layer while surface is still locked
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         imageLayer?.contents = cgImage
         CATransaction.commit()
+
+        // Only unlock AFTER CA has the contents
+        IOSurfaceUnlock(surface, .readOnly, nil)
     }
 }
 
