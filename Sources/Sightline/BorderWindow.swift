@@ -12,7 +12,7 @@ final class BorderWindow: NSWindow {
             defer: false
         )
 
-        level = .floating
+        level = .normal
         isOpaque = false
         backgroundColor = .clear
         ignoresMouseEvents = true
