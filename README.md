@@ -4,7 +4,7 @@
 
 **Share any region of your screen in video calls**
 
-![Platform](https://img.shields.io/badge/platform-macOS%2026-blue?style=flat-square)
+![Platform](https://img.shields.io/badge/platform-macOS%2015%2B-blue?style=flat-square)
 ![Swift 6](https://img.shields.io/badge/swift-6-F05138?style=flat-square&logo=swift&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
 
@@ -99,7 +99,7 @@ cd sightline
 
 ## Requirements
 
-- **macOS 26 (Tahoe)** or later
+- **macOS 15 (Sequoia)** or later
 - **Screen Recording** permission (requested on first use)
 
 ---
@@ -119,21 +119,21 @@ cd sightline
 ## How It Works
 
 ```text
-ScreenCaptureKit          IOSurface              NSWindow
-       │                      │                      │
-       │  Capture region      │                      │
-       │  at 30 FPS           │                      │
-       ▼                      ▼                      ▼
- ┌───────────┐          ┌───────────┐         ┌──────────────┐
- │  SCStream │─────────▶│  Surface  │────────▶│ CaptureWindow│
- └───────────┘          └───────────┘         └──────────────┘
-               CVPixelBuffer          CGImage        │
-                                                     ▼
-                                              Share in call
+ScreenCaptureKit                              NSWindow
+       │                                         │
+       │  Capture region                         │
+       │  at 30 FPS, native pixels               │
+       ▼                                         ▼
+ ┌───────────┐     IOSurface (zero-copy)  ┌──────────────┐
+ │  SCStream │───────────────────────────▶│ CaptureWindow│
+ └───────────┘                            └──────────────┘
+                                                 │
+                                                 ▼
+                                          Share in call
 ```
 
-Sightline captures your selected region using ScreenCaptureKit and renders it to
-a standard window. Conferencing apps see this as a normal window they can
+Sightline captures your selected region using ScreenCaptureKit and hands each
+frame's IOSurface straight to Core Animation in a standard window. Conferencing apps see this as a normal window they can
 share—no hacks required.
 
 ---
@@ -160,7 +160,7 @@ Sightline/
 │   ├── CaptureManager.swift    # Screen capture
 │   ├── CaptureWindow.swift     # Output window
 │   ├── BorderWindow.swift      # Selection border
-│   └── ScreenUtilities.swift   # Coordinate helpers
+│   └── Log.swift               # Debug log file
 ├── Scripts/
 │   ├── build-app.sh            # Build & install
 │   └── generate-icon.swift     # Icon generator
@@ -175,7 +175,7 @@ Sightline/
 | --------- | ---------------------------- |
 | Language  | Swift 6 (strict concurrency) |
 | Capture   | ScreenCaptureKit             |
-| Rendering | IOSurface + CGImage          |
+| Rendering | IOSurface → Core Animation   |
 | UI        | AppKit                       |
 | Build     | Swift Package Manager        |
 
@@ -190,13 +190,19 @@ Sightline/
 
 **Screen recording permission dialog keeps appearing**
 
-> Grant permission in System Settings → Privacy & Security → Screen Recording,
-> then restart Sightline.
+> Grant permission in System Settings → Privacy & Security → Screen & System
+> Audio Recording, then restart Sightline.
+>
+> The permission is tied to the app's code signature. The build script signs
+> ad-hoc by default, which changes on every build, so you have to grant it again
+> after each rebuild. To keep it, sign with a stable identity:
+> `SIGN_IDENTITY="Apple Development: …" ./Scripts/build-app.sh --install`
 
 **Capture appears blurry**
 
-> The capture window size matches your selected region exactly. For best results
-> on calls, select a reasonably-sized region (e.g., 1280×720 or 1920×1080).
+> The capture is taken at the display's native pixel density, and the capture
+> window matches your selected region's size in points. For best results on
+> calls, select a reasonably-sized region (e.g., 1280×720 or 1920×1080).
 
 ---
 

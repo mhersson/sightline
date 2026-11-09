@@ -2,29 +2,41 @@
 
 import AppKit
 
-// Generate Transformers-themed app icon
-func generateIcon(size: Int) -> NSImage {
-    let image = NSImage(size: NSSize(width: size, height: size))
-    let s = CGFloat(size)
+// Generates Sightline.iconset for iconutil. Usage: generate-icon.swift <output-dir>
 
-    image.lockFocus()
+/// Draws the icon into a bitmap of exactly `size`×`size` pixels, independent of the screen's backing scale.
+func renderIcon(size: Int) -> NSBitmapImageRep {
+    let rep = NSBitmapImageRep(
+        bitmapDataPlanes: nil, pixelsWide: size, pixelsHigh: size,
+        bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+        colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0
+    )!
+    rep.size = NSSize(width: size, height: size)
 
-    let bounds = NSRect(x: 0, y: 0, width: size, height: size)
+    NSGraphicsContext.saveGraphicsState()
+    NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+    defer { NSGraphicsContext.restoreGraphicsState() }
+
+    drawIcon(size: CGFloat(size))
+    return rep
+}
+
+func drawIcon(size s: CGFloat) {
+    let bounds = NSRect(x: 0, y: 0, width: s, height: s)
     let cornerRadius = s * 0.22
 
-    // Background - dramatic red to blue split (Autobot vs Decepticon style)
+    // Background: diagonal red-to-blue gradient
     let bgPath = NSBezierPath(roundedRect: bounds, xRadius: cornerRadius, yRadius: cornerRadius)
 
-    // Diagonal split gradient - Optimus Prime colors
     let gradient = NSGradient(colorsAndLocations:
-        (NSColor(red: 0.9, green: 0.1, blue: 0.15, alpha: 1.0), 0.0),    // Autobot red
-        (NSColor(red: 0.7, green: 0.05, blue: 0.1, alpha: 1.0), 0.3),   // Darker red
-        (NSColor(red: 0.15, green: 0.1, blue: 0.4, alpha: 1.0), 0.7),   // Transition to blue
-        (NSColor(red: 0.1, green: 0.2, blue: 0.7, alpha: 1.0), 1.0)     // Autobot blue
+        (NSColor(red: 0.9, green: 0.1, blue: 0.15, alpha: 1.0), 0.0),
+        (NSColor(red: 0.7, green: 0.05, blue: 0.1, alpha: 1.0), 0.3),
+        (NSColor(red: 0.15, green: 0.1, blue: 0.4, alpha: 1.0), 0.7),
+        (NSColor(red: 0.1, green: 0.2, blue: 0.7, alpha: 1.0), 1.0)
     )!
     gradient.draw(in: bgPath, angle: -45)
 
-    // Add metallic sheen overlay
+    // Sheen overlay
     let sheenGradient = NSGradient(colorsAndLocations:
         (NSColor.white.withAlphaComponent(0.3), 0.0),
         (NSColor.white.withAlphaComponent(0.0), 0.3),
@@ -33,22 +45,18 @@ func generateIcon(size: Int) -> NSImage {
     )!
     sheenGradient.draw(in: bgPath, angle: 90)
 
-    // Energon glow effect - cyan/electric blue accents
     let glowColor = NSColor(red: 0.0, green: 0.9, blue: 1.0, alpha: 1.0)
-    let glowColorFade = NSColor(red: 0.0, green: 0.9, blue: 1.0, alpha: 0.0)
 
-    // Screen region - angular, mechanical style
+    // Dashed selection rectangle with a soft glow
     let inset = s * 0.18
     let rectBounds = bounds.insetBy(dx: inset, dy: inset * 1.2)
 
-    // Outer glow for the rectangle
     let glowRect = rectBounds.insetBy(dx: -s * 0.02, dy: -s * 0.02)
     let glowPath = NSBezierPath(roundedRect: glowRect, xRadius: 6, yRadius: 6)
     glowColor.withAlphaComponent(0.4).setStroke()
     glowPath.lineWidth = s * 0.06
     glowPath.stroke()
 
-    // Main rectangle - energon cyan with glow
     let rectPath = NSBezierPath(roundedRect: rectBounds, xRadius: 4, yRadius: 4)
     glowColor.setStroke()
     rectPath.lineWidth = s * 0.035
@@ -56,7 +64,7 @@ func generateIcon(size: Int) -> NSImage {
     rectPath.setLineDash([dashLength, dashLength * 0.5], count: 2, phase: 0)
     rectPath.stroke()
 
-    // === CROSSHAIR - Central targeting system ===
+    // Crosshair
     let centerX = s / 2
     let centerY = s / 2
     let crossSize = s * 0.22
@@ -82,7 +90,6 @@ func generateIcon(size: Int) -> NSImage {
     glowCross.setLineDash([], count: 0, phase: 0)
     glowCross.stroke()
 
-    // Main crosshair - bright orange/yellow (energon power)
     let orangeGlow = NSColor(red: 1.0, green: 0.5, blue: 0.0, alpha: 1.0)
     orangeGlow.setStroke()
 
@@ -103,7 +110,7 @@ func generateIcon(size: Int) -> NSImage {
 
     crossPath.stroke()
 
-    // Center dot - targeting lock
+    // Center dot and ring
     let dotRadius = s * 0.025
     let dotPath = NSBezierPath(ovalIn: NSRect(
         x: centerX - dotRadius,
@@ -114,7 +121,6 @@ func generateIcon(size: Int) -> NSImage {
     NSColor(red: 1.0, green: 0.9, blue: 0.0, alpha: 1.0).setFill()
     dotPath.fill()
 
-    // Outer targeting circle
     let circleRadius = s * 0.08
     let circlePath = NSBezierPath(ovalIn: NSRect(
         x: centerX - circleRadius,
@@ -126,11 +132,10 @@ func generateIcon(size: Int) -> NSImage {
     circlePath.lineWidth = s * 0.015
     circlePath.stroke()
 
-    // Corner brackets - mechanical/angular style
+    // Corner brackets
     let bracketSize = s * 0.1
     let bracketInset = inset + s * 0.01
 
-    // Yellow/gold brackets for that Bumblebee accent
     NSColor(red: 1.0, green: 0.8, blue: 0.0, alpha: 0.9).setStroke()
     let bracketPath = NSBezierPath()
     bracketPath.lineWidth = s * 0.025
@@ -158,7 +163,7 @@ func generateIcon(size: Int) -> NSImage {
 
     bracketPath.stroke()
 
-    // Small accent triangles in corners (Transformers angular style)
+    // Corner accent triangles
     let triSize = s * 0.04
     NSColor(red: 0.0, green: 0.9, blue: 1.0, alpha: 0.7).setFill()
 
@@ -170,48 +175,17 @@ func generateIcon(size: Int) -> NSImage {
         triPath.close()
         triPath.fill()
     }
-
-    image.unlockFocus()
-    return image
 }
 
-func saveAsPNG(_ image: NSImage, to path: String) {
-    guard let tiffData = image.tiffRepresentation,
-          let bitmap = NSBitmapImageRep(data: tiffData),
-          let pngData = bitmap.representation(using: .png, properties: [:]) else {
-        print("Failed to create PNG data")
-        return
-    }
-
-    do {
-        try pngData.write(to: URL(fileURLWithPath: path))
-    } catch {
-        print("Failed to write PNG: \(error)")
-    }
-}
-
-// Icon sizes needed for .icns
-let sizes = [16, 32, 64, 128, 256, 512, 1024]
 let outputDir = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "/tmp/sightline-icon.iconset"
+try FileManager.default.createDirectory(atPath: outputDir, withIntermediateDirectories: true)
 
-// Create iconset directory
-let fileManager = FileManager.default
-try? fileManager.createDirectory(atPath: outputDir, withIntermediateDirectories: true)
-
-for size in sizes {
-    let image = generateIcon(size: size)
-
-    // Standard resolution
-    if size <= 512 {
-        saveAsPNG(image, to: "\(outputDir)/icon_\(size)x\(size).png")
-    }
-
-    // @2x resolution (Retina)
-    if size >= 32 {
-        let halfSize = size / 2
-        if halfSize >= 16 {
-            saveAsPNG(image, to: "\(outputDir)/icon_\(halfSize)x\(halfSize)@2x.png")
-        }
+// The point sizes iconutil expects, each at 1x and 2x.
+for points in [16, 32, 128, 256, 512] {
+    for scale in [1, 2] {
+        let name = scale == 1 ? "icon_\(points)x\(points).png" : "icon_\(points)x\(points)@2x.png"
+        let png = renderIcon(size: points * scale).representation(using: .png, properties: [:])!
+        try png.write(to: URL(fileURLWithPath: outputDir).appending(path: name))
     }
 }
 

@@ -9,7 +9,7 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 BUILD_DIR="$PROJECT_DIR/.build"
 APP_NAME="Sightline"
 APP_BUNDLE="$BUILD_DIR/$APP_NAME.app"
-ICONSET_DIR="$BUILD_DIR/Sightline.iconset"
+ICONSET_DIR="$BUILD_DIR/$APP_NAME.iconset"
 BUNDLE_ID="com.github.mhersson.sightline"
 VERSION="1.0.0"
 
@@ -30,6 +30,7 @@ cp "$BUILD_DIR/release/Sightline" "$APP_BUNDLE/Contents/MacOS/"
 
 # Generate icon
 echo "Generating app icon..."
+rm -rf "$ICONSET_DIR"
 mkdir -p "$ICONSET_DIR"
 swift "$SCRIPT_DIR/generate-icon.swift" "$ICONSET_DIR"
 
@@ -69,6 +70,13 @@ cat > "$APP_BUNDLE/Contents/Info.plist" << EOF
 </dict>
 </plist>
 EOF
+
+# Sign the bundle. Screen Recording permission is tied to the code signature:
+# ad-hoc signatures ("-") change on every build, so the permission has to be
+# granted again after each rebuild. Set SIGN_IDENTITY to a certificate from
+# `security find-identity -v -p codesigning` to keep it across rebuilds.
+echo "Signing app bundle..."
+codesign --force --sign "${SIGN_IDENTITY:--}" --identifier "$BUNDLE_ID" "$APP_BUNDLE"
 
 echo "App bundle created at: $APP_BUNDLE"
 

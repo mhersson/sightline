@@ -1,31 +1,23 @@
 import Foundation
-import os.lock
+import os
 
+/// Appends to ~/Library/Logs/Sightline/sightline_debug.log.
+/// Called from the main thread and from ScreenCaptureKit's callback queues, so writes are serialized.
 enum Log {
-    // Thread-safe file handle — Log.debug is called from both
-    // the main thread and the capture dispatch queue
     private static let handle: OSAllocatedUnfairLock<FileHandle?> = {
-        let logDir = NSHomeDirectory() + "/Library/Logs/Sightline"
-        let logPath = logDir + "/sightline_debug.log"
-
-        do {
-            try FileManager.default.createDirectory(atPath: logDir, withIntermediateDirectories: true)
-            if !FileManager.default.fileExists(atPath: logPath) {
-                FileManager.default.createFile(atPath: logPath, contents: nil)
-            }
-            let fh = FileHandle(forWritingAtPath: logPath)
-            fh?.seekToEndOfFile()
-            return OSAllocatedUnfairLock(initialState: fh)
-        } catch {
-            return OSAllocatedUnfairLock(initialState: nil)
+        let directory = URL.libraryDirectory.appending(path: "Logs/Sightline")
+        let file = directory.appending(path: "sightline_debug.log")
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        if !FileManager.default.fileExists(atPath: file.path) {
+            FileManager.default.createFile(atPath: file.path, contents: nil)
         }
+        let handle = try? FileHandle(forWritingTo: file)
+        _ = try? handle?.seekToEnd()
+        return OSAllocatedUnfairLock(initialState: handle)
     }()
 
     static func debug(_ message: String) {
-        guard let data = "\(Date()): \(message)\n".data(using: .utf8) else { return }
-        handle.withLock { fh in
-            fh?.write(data)
-            try? fh?.synchronize()
-        }
+        let line = Data("\(Date()): \(message)\n".utf8)
+        handle.withLock { try? $0?.write(contentsOf: line) }
     }
 }
